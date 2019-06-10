@@ -65,7 +65,7 @@ defmodule Benchee.Benchmark.Runner do
       }
     }
 
-    {run_times, []} = measure_scenario(scenario, scenario_context)
+    {run_times, [], _} = measure_scenario(scenario, scenario_context)
     %{50 => median} = Statistics.Percentile.percentiles(run_times, 50)
 
     median
@@ -91,8 +91,8 @@ defmodule Benchee.Benchmark.Runner do
   end
 
   defp add_measurements_to_scenario(measurements, scenario) do
-    run_times = Enum.flat_map(measurements, fn {run_times, _} -> run_times end)
-    memory_usages = Enum.flat_map(measurements, fn {_, memory_usages} -> memory_usages end)
+    run_times = Enum.flat_map(measurements, fn {run_times, _, _} -> run_times end)
+    memory_usages = Enum.flat_map(measurements, fn {_, memory_usages, _} -> memory_usages end)
 
     %{
       scenario
@@ -112,9 +112,10 @@ defmodule Benchee.Benchmark.Runner do
       |> deduct_function_call_overhead(scenario_context.function_call_overhead)
 
     memory_usages = run_memory_benchmark(scenario, scenario_context)
+    reductions = run_reductions_benchmark(scenario, scenario_context)
     Hooks.run_after_scenario(scenario, scenario_context)
 
-    {run_times, memory_usages}
+    {run_times, memory_usages, reductions}
   end
 
   defp run_warmup(
@@ -148,6 +149,29 @@ defmodule Benchee.Benchmark.Runner do
     end)
   end
 
+  defp run_reductions_benchmark(_, %ScenarioContext{config: %{reduction_time: 0.0}}) do
+    []
+  end
+
+  defp run_reductions_benchmark(
+         scenario,
+         scenario_context = %ScenarioContext{
+           config: %Configuration{
+             reduction_time: reduction_time
+           }
+         }
+       ) do
+    end_time = current_time() + reduction_time
+
+    new_context = %ScenarioContext{
+      scenario_context
+      | current_time: current_time(),
+        end_time: end_time
+    }
+
+    do_benchmark(scenario, new_context, Collect.Reductions, [])
+  end
+
   defp run_memory_benchmark(_, %ScenarioContext{config: %{memory_time: 0.0}}) do
     []
   end
@@ -168,7 +192,8 @@ defmodule Benchee.Benchmark.Runner do
         end_time: end_time
     }
 
-    do_benchmark(scenario, new_context, Collect.Memory, [])
+    #do_benchmark(scenario, new_context, Collect.Memory, [])
+    []
   end
 
   defp measure_runtimes(scenario, context, run_time, fast_warning)
@@ -188,7 +213,8 @@ defmodule Benchee.Benchmark.Runner do
         num_iterations: num_iterations
     }
 
-    do_benchmark(scenario, new_context, Collect.Time, [initial_run_time])
+    #do_benchmark(scenario, new_context, Collect.Time, [initial_run_time])
+    []
   end
 
   defp current_time, do: :erlang.system_time(:nano_seconds)

@@ -16,6 +16,7 @@ defmodule Benchee.Configuration do
             time: 5,
             warmup: 2,
             memory_time: 0.0,
+            reduction_time: 0.0,
             pre_check: false,
             formatters: [Console],
             percentiles: [50, 99],
